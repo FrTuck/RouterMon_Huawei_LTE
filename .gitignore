@@ -1,0 +1,18 @@
+# Сборка PyInstaller
+/dist/
+/build/
+*.spec
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# ОС и редакторы
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/

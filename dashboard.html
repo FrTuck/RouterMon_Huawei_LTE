@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B818 — LTE-панель</title>
+<style>
+  :root{
+    --bg:#0f1420; --card:#1a2130; --card2:#222b3d; --line:#2c3850;
+    --fg:#e7edf7; --mut:#8a98b0; --accent:#4da3ff;
+    --ok:#3ecf8e; --good:#8bd450; --warn:#f0b429; --poor:#f0883e; --bad:#ef5a5a; --na:#5a6683;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#eef2f8; --card:#ffffff; --card2:#f3f6fb; --line:#dde4ef;
+      --fg:#1b2435; --mut:#5e6a82; --accent:#1f6fd6; --na:#aab4c8;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:16px}
+  .wrap{max-width:1280px;margin:0 auto}
+  header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  h1{font-size:18px;margin:0;font-weight:650}
+  .pill{font-size:12px;padding:3px 9px;border-radius:20px;background:var(--card2);
+        color:var(--mut);border:1px solid var(--line);white-space:nowrap}
+  .pill.live{color:var(--ok)}
+  /* индикатор обмена панель <-> роутер */
+  .livew{display:inline-flex;align-items:center;gap:3px;font-size:12px;padding:2px 9px;border-radius:20px;
+         background:var(--card2);border:1px solid var(--line);color:var(--accent);white-space:nowrap}
+  .livew.on{color:var(--ok)} .livew.scan{color:var(--warn)} .livew.off{color:var(--bad)}
+  .livew .ic{width:14px;height:14px;flex:none}
+  .livew .ic.ant{display:none}
+  .livew.scan .ic.gear{display:none}
+  .livew.scan .ic.ant{display:inline-block}
+  .track{position:relative;width:40px;height:14px;flex:none;overflow:hidden}
+  .track .d{position:absolute;top:5px;left:0;width:4px;height:4px;border-radius:50%;background:currentColor;opacity:0}
+  .track .offdots,.track .xm{display:none}
+  .livew.off .track .d{display:none}
+  .livew.off .track .offdots{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 2px}
+  .track .offdots i{width:4px;height:4px;border-radius:50%;background:var(--mut);opacity:.6}
+  .livew.off .track .xm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+         color:var(--bad);font-weight:700;font-size:15px;line-height:1}
+  .livew.on .r1{animation:flowR 1.4s linear infinite} .livew.on .r2{animation:flowR 1.4s linear infinite .47s}
+  .livew.on .r3{animation:flowR 1.4s linear infinite .93s}
+  .livew.on .l1{animation:flowL 1.4s linear infinite .23s} .livew.on .l2{animation:flowL 1.4s linear infinite .7s}
+  .livew.scan .r1{animation:flowR 1.4s linear infinite} .livew.scan .r2{animation:flowR 1.4s linear infinite .47s}
+  .livew.scan .r3{animation:flowR 1.4s linear infinite .93s}
+  .livew.scan .l1,.livew.scan .l2{display:none}
+  @keyframes flowR{0%{transform:translateX(-4px) scale(.6);opacity:0}15%{opacity:1}50%{transform:translateX(18px) scale(1)}85%{opacity:1}100%{transform:translateX(40px) scale(.6);opacity:0}}
+  @keyframes flowL{0%{transform:translateX(40px) scale(.6);opacity:0}15%{opacity:1}50%{transform:translateX(18px) scale(1)}85%{opacity:1}100%{transform:translateX(-4px) scale(.6);opacity:0}}
+  .btn{font:inherit;font-size:13px;padding:5px 12px;border-radius:9px;cursor:pointer;
+       background:var(--accent);color:#fff;border:1px solid transparent}
+  .btn.ghost{background:var(--card2);color:var(--fg);border-color:var(--line)}
+  .btn.danger{background:var(--bad)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .grid{display:grid;gap:12px;grid-template-columns:repeat(4,1fr)}
+  .grid5{display:grid;gap:12px;grid-template-columns:repeat(5,1fr);margin-bottom:12px}
+  @media(max-width:760px){.grid5{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:460px){.grid5{grid-template-columns:1fr}}
+  .grid6{display:grid;gap:12px;grid-template-columns:repeat(6,1fr);margin-bottom:12px}
+  @media(max-width:980px){.grid6{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:620px){.grid6{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:420px){.grid6{grid-template-columns:1fr}}
+  .btn svg{vertical-align:-2px;margin-right:5px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;position:relative}
+  .card h2{font-size:12px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;
+           color:var(--mut);margin:0 0 10px;display:flex;align-items:center;gap:6px}
+  .big{font-size:30px;font-weight:700;line-height:1}
+  .unit{font-size:14px;color:var(--mut);font-weight:500;margin-left:4px}
+  .sub{font-size:12px;color:var(--mut);margin-top:6px}
+  .tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--na);border-radius:14px 0 0 14px}
+  .q-ok::before{background:var(--ok)} .q-good::before{background:var(--good)}
+  .q-warn::before{background:var(--warn)} .q-poor::before{background:var(--poor)}
+  .q-bad::before{background:var(--bad)} .q-na::before{background:var(--na)}
+  .tile .label{font-size:14px;font-weight:600;margin-top:6px}
+  #sigqual{font-size:14px;font-weight:600;margin-top:6px}
+  .spdrow{display:flex;align-items:baseline;justify-content:center;gap:6px;margin-top:6px}
+  .spdar{font-size:18px;font-weight:700;color:var(--accent)}
+  .spdval{font-size:22px;font-weight:700}
+  .q-ok .label{color:var(--ok)} .q-good .label{color:var(--good)}
+  .q-warn .label{color:var(--warn)} .q-poor .label{color:var(--poor)}
+  .q-bad .label{color:var(--bad)} .q-na .label{color:var(--mut)}
+  .bars{display:flex;align-items:flex-end;gap:4px;height:34px;margin-bottom:6px}
+  .bars i{flex:1;background:var(--na);border-radius:2px;opacity:.3}
+  .bars i.on{opacity:1;background:var(--accent)}
+  .bars i:nth-child(1){height:30%}.bars i:nth-child(2){height:48%}
+  .bars i:nth-child(3){height:66%}.bars i:nth-child(4){height:84%}.bars i:nth-child(5){height:100%}
+  /* подключено — зелёная шкала */
+  .bars.ok i.on{background:var(--ok)}
+  /* подключение — оранжевая бегущая подсветка от меньшего деления к большему */
+  .bars.conn i{background:var(--warn);opacity:.2;animation:barwave 1.2s linear infinite}
+  .bars.conn i:nth-child(1){animation-delay:0s}.bars.conn i:nth-child(2){animation-delay:.12s}
+  .bars.conn i:nth-child(3){animation-delay:.24s}.bars.conn i:nth-child(4){animation-delay:.36s}
+  .bars.conn i:nth-child(5){animation-delay:.48s}
+  @keyframes barwave{0%,55%,100%{opacity:.2}25%{opacity:1}}
+  /* ошибка сети — пустые деления, только красная граница */
+  .bars.err i{background:transparent;border:1px solid var(--bad);opacity:1}
+  .rows{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px}
+  .rows b{color:var(--mut);font-weight:500}
+  .rows span{text-align:right;word-break:break-all}
+  .net{display:flex;gap:18px}.net .one{flex:1}
+  .arrow{font-size:12px;color:var(--mut)}
+  footer{color:var(--mut);font-size:12px;margin-top:16px;display:flex;gap:14px;flex-wrap:wrap}
+  .warnbox{background:var(--card2);border:1px dashed var(--line);border-radius:12px;
+           padding:10px 14px;color:var(--mut);font-size:13px;margin-bottom:12px}
+  a{color:var(--accent)}
+  .span2{grid-column:span 2}.span3{grid-column:span 3}.span4{grid-column:span 4}
+  @media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.span2,.span3,.span4{grid-column:span 2}}
+  @media(max-width:460px){.grid{grid-template-columns:1fr}.span2,.span3,.span4{grid-column:span 1}.net{flex-direction:column;gap:8px}}
+  /* плитки сигнала — содержимое по центру */
+  .tile{text-align:center}
+  .tile h2{justify-content:center}
+  .sigline{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .sgen{font-weight:700;font-size:16px}
+  .sigdot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--na)}
+  /* строка сведений в заголовке окна «Сигнал» */
+  .sighead{justify-content:space-between;flex-wrap:wrap;gap:6px}
+  .siginfo{display:inline-flex;align-items:center;gap:7px;text-transform:none;letter-spacing:0;font-weight:400}
+  .siginfo .sgen{font-size:13px;font-weight:700;color:var(--fg)}
+  .siginfo .label{font-size:12px}
+  .siginfo .muted{font-size:11px}
+
+  /* справка (?) */
+  .help{position:relative;display:inline-flex}
+  .help .q{width:16px;height:16px;border-radius:50%;border:1px solid var(--line);
+           background:var(--card2);color:var(--mut);font-size:11px;font-weight:700;
+           display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1}
+  .help .pop{position:absolute;z-index:20;left:0;top:22px;width:250px;background:var(--card2);
+             border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;
+             line-height:1.5;color:var(--fg);font-weight:400;text-transform:none;letter-spacing:0;
+             box-shadow:0 8px 24px rgba(0,0,0,.35);display:none}
+  .help:hover .pop,.help.pin .pop{display:block}
+  .help .pop b{color:var(--accent)}
+
+  /* управление */
+  .bands{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .bands label{display:flex;align-items:center;gap:5px;font-size:13px;padding:4px 9px;
+               border:1px solid var(--line);border-radius:8px;cursor:pointer;background:var(--card2)}
+  .bands label.on{border-color:var(--accent);color:var(--accent)}
+  .bands input{accent-color:var(--accent)}
+  .ctl-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .muted{color:var(--mut);font-size:12px}
+  .exp{font-size:11px;color:var(--warn);border:1px solid var(--warn);border-radius:6px;padding:1px 6px}
+  /* выпадающие списки */
+  details.dd{border:1px solid var(--line);border-radius:10px;background:var(--card2)}
+  details.dd>summary{list-style:none;cursor:pointer;padding:9px 12px;font-size:14px;
+                     display:flex;align-items:center;gap:8px;user-select:none}
+  details.dd>summary::-webkit-details-marker{display:none}
+  details.dd>summary::after{content:"▾";margin-left:auto;color:var(--mut)}
+  details.dd[open]>summary::after{content:"▴"}
+  details.dd .ddbody{padding:10px 12px;border-top:1px solid var(--line)}
+  details.dd2{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+  details.dd2>summary{list-style:none;cursor:pointer;color:var(--accent);font-size:13px}
+  details.dd2>summary::-webkit-details-marker{display:none}
+  .dd summary label{cursor:pointer;display:flex;align-items:center;gap:6px}
+
+  /* оверлей входа */
+  .overlay{position:fixed;inset:0;background:rgba(6,10,18,.72);backdrop-filter:blur(3px);
+           display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
+  .overlay.show{display:flex}
+  .login{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;
+         width:360px;max-width:100%}
+  .login h3{margin:0 0 4px;font-size:17px}
+  .login p{margin:0 0 16px;color:var(--mut);font-size:13px}
+  .login input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
+               background:var(--card2);color:var(--fg);font:inherit;margin-bottom:10px}
+  .login .err{color:var(--bad);font-size:13px;min-height:18px;margin-bottom:8px}
+  .login .adv{font-size:12px;color:var(--mut);cursor:pointer}
+  .row-btn{display:flex;gap:8px;align-items:center;margin-top:4px}
+  .pwwrap{position:relative;margin-bottom:10px}
+  .pwwrap input{margin-bottom:0;padding-right:42px}
+  .eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;
+       color:var(--mut);cursor:pointer;padding:4px;display:flex;align-items:center}
+  .eye:hover{color:var(--fg)}
+
+  /* тост */
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:200;
+         background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 16px;
+         font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.4);display:none;max-width:90vw}
+  .toast.show{display:block}.toast.ok{border-color:var(--ok)}.toast.bad{border-color:var(--bad)}
+
+  /* вкладки */
+  .tabs{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+  .tab{font:inherit;font-size:14px;padding:7px 14px;border-radius:9px;cursor:pointer;
+       background:transparent;color:var(--mut);border:1px solid var(--line)}
+  .tab.on{background:var(--card);color:var(--fg);border-color:var(--accent)}
+  /* сканер */
+  .scan-warn{background:rgba(240,136,62,.13);border:1px solid var(--poor);border-radius:12px;
+             padding:12px 14px;font-size:13px;line-height:1.5;margin-bottom:14px}
+  .scan-warn b{color:var(--poor)}
+  .prog{height:8px;background:var(--card2);border-radius:6px;overflow:hidden;margin:12px 0 4px}
+  .prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .35s}
+  .cellblock{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--card2)}
+  .cellblock h3{margin:0 0 8px;font-size:14px}
+  table.scan{width:100%;border-collapse:collapse;font-size:13px}
+  table.scan th,table.scan td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line)}
+  table.scan th{color:var(--mut);font-weight:500}
+  table.scan td.cellcol{vertical-align:middle;font-weight:700;border-right:1px solid var(--line);white-space:nowrap}
+  table.scan td.pickcol{width:30px;text-align:center}
+  table.scan tr.grp td{border-top:2px solid var(--line)}
+  table.scan tbody tr:hover{background:rgba(255,255,255,.03)}
+  table.scan .pick{accent-color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>LTE-панель · Huawei B818</h1>
+    <span class="pill" id="operator">—</span>
+    <span class="livew" id="live" title="обновление…">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="12.5" width="19" height="8" rx="2"/><circle cx="6.5" cy="16.5" r="0.9" fill="currentColor" stroke="none"/><line x1="8" y1="12.5" x2="8" y2="7"/><line x1="16" y1="12.5" x2="16" y2="7"/></svg>
+        <span class="track">
+          <i class="d r1"></i><i class="d r2"></i><i class="d r3"></i><i class="d l1"></i><i class="d l2"></i>
+          <span class="offdots"><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="xm">✕</span>
+        </span>
+        <svg class="ic gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <svg class="ic ant" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 11v10"/><path d="M8.5 21h7"/><path d="M12 11 9 21"/><path d="M12 11l3 10"/><path d="M6.8 8.2a6 6 0 0 1 10.4 0"/><path d="M9.3 8.6a3 3 0 0 1 5.4 0"/></svg>
+      </span>
+      <span style="margin-left:auto"><button class="btn ghost" id="authbtn" onclick="authClick()">Войти</button></span>
+  </header>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="overview" onclick="showTab('overview')">Обзор</button>
+    <button class="tab" data-tab="scanner" onclick="showTab('scanner')">Сканер диапазонов</button>
+    <button class="btn danger" id="rebootbtn" style="margin-left:auto;display:none" onclick="reboot()">Перезагрузить роутер</button>
+  </div>
+
+  <div id="tab-overview">
+  <div class="warnbox" id="authnote" style="display:none"></div>
+
+  <!-- Сигнал, показатели и скорость — одной строкой, окна одинакового размера -->
+  <div class="grid6">
+    <div class="card">
+      <h2 class="sighead"><span>Сигнал</span>
+        <span class="siginfo"><span class="sgen" id="siggen">—</span></span></h2>
+      <div class="bars" id="bars" style="margin:6px 0"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="label" id="sigqual" style="text-align:center">—</div>
+    </div>
+    <div class="card tile q-na" id="t-rsrp">
+      <h2>RSRP <span class="help" data-h="rsrp"><span class="q">?</span><span class="pop"></span></span></h2>
+      <div><span class="big" id="v-rsrp">—</span><span class="unit">dBm</span></div>
+      <div class="label" id="l-rsrp">мощность сигнала</div>
+    </div>
+    <div class="card tile q-na" id="t-rsrq">
+      <h2>RSRQ <span class="help" data-h="rsrq"><span class="q">?</span><span class="pop"></span></span></h2>
+      <div><span class="big" id="v-rsrq">—</span><span class="unit">dB</span></div>
+      <div class="label" id="l-rsrq">качество</div>
+    </div>
+    <div class="card tile q-na" id="t-sinr">
+      <h2>SINR <span class="help" data-h="sinr"><span class="q">?</span><span class="pop"></span></span></h2>
+      <div><span class="big" id="v-sinr">—</span><span class="unit">dB</span></div>
+      <div class="label" id="l-sinr">шум/помехи</div>
+    </div>
+    <div class="card tile q-na" id="t-rssi">
+      <h2>RSSI <span class="help" data-h="rssi"><span class="q">?</span><span class="pop"></span></span></h2>
+      <div><span class="big" id="v-rssi">—</span><span class="unit">dBm</span></div>
+      <div class="label" id="l-rssi">суммарная мощность</div>
+    </div>
+    <div class="card" style="text-align:center">
+      <h2 style="justify-content:center">Скорость</h2>
+      <div class="spdrow"><span class="spdar">↓</span><span class="spdval" id="dl">—</span><span class="unit">Mbps</span></div>
+      <div class="spdrow"><span class="spdar">↑</span><span class="spdval" id="ul">—</span><span class="unit">Mbps</span></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card span2">
+      <h2>CELL &amp; BAND</h2>
+      <div class="rows" id="cellrows"><b>—</b><span>нужен вход</span></div>
+    </div>
+    <div class="card span2">
+      <h2>Трафик</h2>
+      <div class="rows">
+        <b>Сессия ↓ / ↑</b><span id="sess">—</span>
+        <b>Время сессии</b><span id="uptime">—</span>
+        <b>За месяц ↓ / ↑</b><span id="month">—</span>
+        <b>Всего ↓ / ↑</b><span id="total">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Управление (только после входа) -->
+  <div id="controls" style="display:none;margin-top:12px">
+    <div class="grid">
+      <div class="card span2" id="bandctl">
+        <h2>Диапазоны LTE
+          <span class="help" data-h="band"><span class="q">?</span><span class="pop"></span></span></h2>
+        <div class="bands" id="bandbox"></div>
+        <details class="dd2" id="bandrestdd" style="display:none">
+          <summary>Остальные диапазоны</summary>
+          <div class="bands" id="bandbox_rest" style="margin-top:8px"></div>
+        </details>
+        <div class="ctl-row" style="margin-top:12px">
+          <button class="btn" id="bandapply" onclick="applyBand()">Применить</button>
+          <button class="btn ghost" onclick="setAuto()">Авто (все)</button>
+        </div>
+      </div>
+
+      <div class="card span2">
+        <h2>Привязка к соте
+          <span class="help" data-h="cell"><span class="q">?</span><span class="pop"></span></span></h2>
+        <div class="rows" style="margin-bottom:10px">
+          <b>Текущая сота
+            <span class="help" data-h="cellinfo"><span class="q">?</span><span class="pop"></span></span></b><span id="curcell">—</span>
+          <b>Статус привязки</b><span id="lockstate">—</span>
+        </div>
+        <div class="ctl-row">
+          <button class="btn" onclick="cellLock(true)">Привязать к текущей</button>
+          <button class="btn ghost" onclick="cellLock(false)">Снять привязку</button>
+        </div>
+        <div class="muted" id="cellmsg" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+  </div><!-- /tab-overview -->
+
+  <!-- Вкладка «Сканер диапазонов» -->
+  <div id="tab-scanner" style="display:none">
+    <div class="scan-warn">
+      <b>Во время сканирования интернет будет пропадать.</b> Сканер по очереди переключает роутер
+      на каждый выбранный диапазон и замеряет, подключается ли он и с каким сигналом, поэтому на
+      каждом band связь прерывается на несколько секунд. Полный проход занимает около 5 минут. Не
+      запускайте во время важной загрузки, звонка или игры — по окончании исходный режим вернётся сам.
+    </div>
+    <div class="card">
+      <h2>Что проверять</h2>
+      <div id="scanneed" class="muted" style="margin-bottom:10px;display:none">
+        Нужен вход — войдите (кнопка «Войти» вверху), чтобы запускать сканер.</div>
+      <details class="dd" id="scandd">
+        <summary>
+          <label onclick="event.stopPropagation()"><input type="checkbox" id="scanall" checked
+            onchange="toggleScanAll(this)"> Все диапазоны</label>
+        </summary>
+        <div class="ddbody"><div class="bands" id="scanbands"></div></div>
+      </details>
+      <div class="ctl-row" style="margin-top:12px">
+        <button class="btn" id="scanstart" onclick="startScan()">Сканировать</button>
+        <button class="btn ghost" id="scanstop" onclick="stopScan()" disabled>Остановить</button>
+        <span class="muted" id="scanprogtxt"></span>
+      </div>
+      <div class="prog" id="scanprogbar" style="display:none"><i id="scanprogfill"></i></div>
+      <div class="muted" id="scanfailed" style="margin-top:6px"></div>
+    </div>
+    <div id="scanresults" style="margin-top:12px"></div>
+  </div>
+
+  <footer>
+    <span id="err"></span>
+    <span style="margin-left:auto">обновление каждые 3 с · <a href="#" id="theme">сменить тему</a></span>
+  </footer>
+</div>
+
+<!-- вход -->
+<div class="overlay" id="overlay">
+  <div class="login">
+    <h3>Вход в роутер</h3>
+    <p>Введите пароль веб-интерфейса роутера. Он нужен для точного сигнала, смены Band,
+       привязки к соте и перезагрузки. Пароль уходит только на роутер и не сохраняется.</p>
+    <input type="text" id="router" placeholder="Адрес роутера (192.168.1.1 или 192.168.8.1)" autocomplete="off">
+    <div class="pwwrap">
+      <input type="password" id="pw" placeholder="Пароль" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter')doLogin()">
+      <button type="button" class="eye" id="eyebtn" onclick="togglePw()" title="Показать пароль"></button>
+    </div>
+    <input type="text" id="usr" placeholder="Логин (по умолчанию admin)" style="display:none"
+           autocomplete="username">
+    <div class="err" id="loginerr"></div>
+    <div class="row-btn">
+      <button class="btn" id="loginbtn" onclick="doLogin()">Войти</button>
+      <button class="btn ghost" onclick="skipLogin()">Без входа</button>
+      <span class="adv" onclick="document.getElementById('usr').style.display='block'">сменить логин</span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const EXIT_SVG='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
+const EYE_SVG='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYEOFF_SVG='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+function togglePw(){const i=$("pw");const show=i.type==="password";i.type=show?"text":"password";
+  $("eyebtn").innerHTML=show?EYEOFF_SVG:EYE_SVG;$("eyebtn").title=show?"Скрыть пароль":"Показать пароль";i.focus();}
+function focusLogin(){try{if($("router").value.trim())$("pw").focus();else $("router").focus();}catch(_){}}
+let state = {logged_in:false, dismissed:false, lastSignal:{}, busy:false};
+
+// ---------- справки ----------
+const HELP = {
+  rsrp:"<b>RSRP</b> — мощность опорных сигналов LTE (dBm). Главный показатель уровня «от вышки». "+
+       "Чем ближе к нулю, тем лучше: ≥ −80 отлично, −80…−90 хорошо, −90…−100 средне, −100…−110 слабо, &lt; −110 почти нет связи.",
+  rsrq:"<b>RSRQ</b> — качество опорного сигнала (dB): какую долю принятого занимает полезный сигнал. "+
+       "Падает, когда сота загружена. ≥ −10 отлично, −10…−15 хорошо, −15…−20 слабо, &lt; −20 плохо.",
+  sinr:"<b>SINR</b> — отношение сигнал / (шум + помехи), dB. Сильнее всего влияет на скорость. "+
+       "≥ 20 отлично, 13…20 хорошо, 5…13 средне, 0…5 слабо, &lt; 0 помехи — скорость резко падает.",
+  rssi:"<b>RSSI</b> — суммарная мощность в полосе (сигнал + шум + соседние), dBm. Грубый общий уровень. "+
+       "≥ −65 отлично, −65…−75 хорошо, −75…−85 средне, &lt; −85 слабо.",
+  band:"<b>Диапазоны LTE (Band)</b> — какие частоты роутеру разрешено использовать. «Авто» — все поддерживаемые. "+
+       "Можно оставить только нужные: дальнобойный B20 (800 МГц) или быстрый B7 (2600 МГц). После применения связь "+
+       "прервётся на несколько секунд; если отметить несколько — роутер выберет лучший.<br><br>"+
+       "<b>Частоты, МГц:</b> B1 — 2100, B3 — 1800, B7 — 2600, B8 — 900, B20 — 800, B28 — 700, "+
+       "B38 — 2600 (TDD), B40 — 2300 (TDD), B41 — 2500 (TDD).",
+  cell:"<b>Привязка к соте</b> — запрет переключаться на другие вышки/секторы, фиксация на текущей (по Cell / "+
+       "PCI / частоте). Полезно при «скачках» между сотами. <b>Экспериментально:</b> поддержка зависит от прошивки — "+
+       "на B818 может не сработать; если не применится, роутер покажет код ошибки, а «Снять привязку» вернёт как было.",
+  cellinfo:"<b>Cell</b> — идентификатор соты (сектора вышки). <b>PCI</b> — physical cell id, «эфирный» номер соты "+
+       "(0–503), по нему устройство отличает соседние секторы. <b>EARFCN</b> — номер радиоканала LTE: "+
+       "<b>DL</b> — канал на приём (от вышки), <b>UL</b> — на передачу (к вышке).",
+};
+function initHelp(){
+  document.querySelectorAll(".help").forEach(h=>{
+    h.querySelector(".pop").innerHTML = HELP[h.dataset.h]||"";
+    h.querySelector(".q").onclick = e=>{e.stopPropagation();
+      document.querySelectorAll(".help.pin").forEach(o=>{if(o!==h)o.classList.remove("pin")});
+      h.classList.toggle("pin");};
+  });
+  document.addEventListener("click",()=>document.querySelectorAll(".help.pin").forEach(h=>h.classList.remove("pin")));
+}
+
+// ---------- формат ----------
+function bytes(n){n=+n;if(!isFinite(n))return"—";const u=["B","KB","MB","GB","TB","PB"];let i=0;
+  while(n>=1024&&i<u.length-1){n/=1024;i++}return (i===0?n:n.toFixed(n<10?2:1))+" "+u[i];}
+function mbps(b){const v=(+b)*8/1e6;if(!isFinite(v))return"—";return v>=100?v.toFixed(0):v.toFixed(v<10?2:1);}
+function dur(s){s=+s;if(!isFinite(s)||s<0)return"—";const d=Math.floor(s/86400);s%=86400;
+  const h=Math.floor(s/3600);s%=3600;const m=Math.floor(s/60),sec=Math.floor(s%60);
+  let p=[];if(d)p.push(d+"d");if(h||d)p.push(h+"h");p.push(m+"m");if(!d&&!h)p.push(sec+"s");return p.join(" ");}
+function num(x){if(x==null)return null;const m=String(x).match(/-?\d+(?:\.\d+)?/);return m?+m[0]:null;}
+
+const Q={
+  sig:[[-80,"q-ok","отличный"],[-90,"q-good","хороший"],[-100,"q-warn","средний"],[-110,"q-poor","слабый"],[-999,"q-bad","очень слабый"]],       // сигнал (м.р.)
+  rsrp:[[-80,"q-ok","отличная"],[-90,"q-good","хорошая"],[-100,"q-warn","средняя"],[-110,"q-poor","слабая"],[-999,"q-bad","очень слабая"]],      // мощность (ж.р.)
+  rsrq:[[-10,"q-ok","отличное"],[-15,"q-good","хорошее"],[-20,"q-poor","слабое"],[-999,"q-bad","плохое"]],                                        // качество (ср.р.)
+  sinr:[[20,"q-ok","отличное"],[13,"q-good","хорошее"],[5,"q-warn","среднее"],[0,"q-poor","слабое"],[-999,"q-bad","помехи"]],                     // отношение (ср.р.)
+  rssi:[[-65,"q-ok","отличная"],[-75,"q-good","хорошая"],[-85,"q-warn","средняя"],[-999,"q-poor","слабая"]],                                      // мощность (ж.р.)
+};
+function applyTile(name,val){const tile=$("t-"+name),v=$("v-"+name),l=$("l-"+name),n=num(val);
+  tile.className="card tile q-na";if(n==null){v.textContent="—";return;}
+  v.textContent=Number.isInteger(n)?n:n.toFixed(1);
+  for(const[th,cls,word]of Q[name]){if(n>=th){tile.classList.remove("q-na");tile.classList.add(cls);l.textContent=word;break;}}}
+
+const NET={0:"Нет сети",1:"GSM",2:"GPRS",3:"EDGE",4:"WCDMA",5:"HSDPA",6:"HSUPA",7:"HSPA",8:"TD-SCDMA",9:"HSPA+",10:"EV-DO",19:"LTE",41:"WCDMA",44:"HSPA",45:"HSPA+",46:"DC-HSPA+",64:"HSPA",65:"HSPA+",101:"LTE",111:"5G NSA",1011:"LTE+",1012:"5G NSA"};
+const CONN={900:"Подключение…",901:"Подключено",902:"Отключено",903:"Разрыв…",904:"Сбой",905:"Сбой",906:"Запрещено роумингом",907:"Ожидание"};
+const GEN={0:"",1:"2G",2:"2G",3:"2G",4:"3G",5:"3G",6:"3G",7:"3G",8:"3G",9:"3G",10:"3G",19:"4G",41:"3G",44:"3G",45:"3G",46:"3G",64:"3G",65:"3G",101:"4G",111:"5G",1011:"4G",1012:"5G"};
+const QCOLOR={"q-ok":"var(--ok)","q-good":"var(--good)","q-warn":"var(--warn)","q-poor":"var(--poor)","q-bad":"var(--bad)","q-na":"var(--mut)"};
+function qualityFor(sg,bars){
+  const n=num(sg&&sg.rsrp);
+  if(n!=null){for(const[th,cls,word]of Q.sig){if(n>=th)return {word,color:QCOLOR[cls]};}}
+  const map=[[5,"q-ok","отличный"],[4,"q-good","хороший"],[3,"q-warn","средний"],[2,"q-poor","слабый"],[1,"q-bad","очень слабый"]];
+  for(const[th,cls,word]of map){if(bars>=th)return {word,color:QCOLOR[cls]};}
+  return {word:"нет сигнала",color:QCOLOR["q-na"]};
+}
+
+// подписи частот диапазонов и список по умолчанию (до входа — пока неизвестно, что поддерживает роутер)
+const BANDMETA={1:"2100",3:"1800",5:"850",7:"2600",8:"900",20:"800",28:"700",32:"1500",38:"2600 TDD",40:"2300 TDD",41:"2500 TDD"};
+const DEFAULT_BANDS=[1,3,7,8,20,28,38,40,41];
+// подписи диапазонов одинаковые для всех — только «B<n>»; частоты вынесены в справку «?»
+function boxHTML(prefix,n,checked,extra){return `<label id="${prefix}-${n}"${checked?' class="on"':''}>`+
+  `<input type="checkbox" value="${n}"${checked?' checked':''} onchange="this.parentNode.classList.toggle('on',this.checked);${extra||''}"> B${n}</label>`;}
+// контрол Band на «Обзоре»: доступные/выбранные — первыми, остальные под спойлером
+function renderBandControl(supported, firstBands){
+  const first=supported.filter(n=>firstBands.includes(n));
+  const main=first.length?first:supported;
+  const rest=first.length?supported.filter(n=>!firstBands.includes(n)):[];
+  $("bandbox").innerHTML=main.map(n=>boxHTML("b",n,false)).join("");
+  if(rest.length){$("bandbox_rest").innerHTML=rest.map(n=>boxHTML("b",n,false)).join("");$("bandrestdd").style.display="";}
+  else{$("bandbox_rest").innerHTML="";$("bandrestdd").style.display="none";}
+}
+function renderScanBands(supported){
+  $("scanbands").innerHTML=supported.map(n=>boxHTML("sb",n,true,"syncScanAll()")).join("");
+  syncScanAll();
+}
+function initBands(){renderBandControl(DEFAULT_BANDS,[]);renderScanBands(DEFAULT_BANDS);}
+function chosenBoxes(container){return [...$(container).querySelectorAll('input:checked')].map(i=>+i.value);}
+function toggleScanAll(cb){document.querySelectorAll('#scanbands input').forEach(i=>{i.checked=cb.checked;i.parentNode.classList.toggle('on',cb.checked);});
+  if(!cb.checked){const dd=$("scandd");if(dd)dd.open=true;}}  // сняли «Все» — раскрываем список для ручного выбора
+function syncScanAll(){const all=[...document.querySelectorAll('#scanbands input')];const on=all.filter(i=>i.checked).length;
+  const m=$("scanall");if(m){m.checked=all.length>0&&on===all.length;m.indeterminate=on>0&&on<all.length;}}
+function bandsFromMask(hex){ // hex-маска LTEBand -> массив номеров
+  if(!hex)return[];let v;try{v=BigInt("0x"+hex);}catch(_){return[];}
+  const out=[];for(let i=0;i<64;i++){if((v>>BigInt(i))&1n)out.push(i+1);}return out;}
+
+// ---------- опрос ----------
+function setLive(s){const t={on:"в эфире",scan:"сканирование",off:"нет связи с панелью"};
+  $("live").className="livew "+s;$("live").title=t[s]||"";}
+async function tick(){
+  let d;
+  try{d=await(await fetch("/api/data",{cache:"no-store"})).json();}
+  catch(e){setLive("off");return;}
+  if(d.fatal){$("err").textContent="Ошибка: "+d.fatal;return;}
+  // во время скана главная заморожена — показываем баннер и опрашиваем только статус скана
+  if(d.scanning){
+    state.logged_in=!!d.logged_in;
+    setLive("scan");
+    $("authnote").style.display="";
+    $("authnote").innerHTML="Идёт сканирование диапазонов — обзор приостановлен, чтобы не мешать сканеру. "+
+      "Прогресс и результаты — на вкладке <b>«Сканер диапазонов»</b>.";
+    if(!scanTimer)scanPoll();
+    return;
+  }
+  setLive("on");
+
+  state.logged_in=!!d.logged_in;
+  const st=d.status||{},pl=d.plmn||{},tr=d.traffic||{},mo=d.month||{},sg=d.signal||{},inf=d.info||{};
+  state.lastSignal=sg;
+
+  $("operator").textContent=pl.FullName||pl.ShortName||"оператор ?";
+  const nt=st.CurrentNetworkTypeEx&&NET[st.CurrentNetworkTypeEx]?st.CurrentNetworkTypeEx:st.CurrentNetworkType;
+
+  let bars=num(st.SignalIcon);if(bars==null)bars=num(st.SignalStrength);
+  bars=bars==null?0:Math.max(0,Math.min(5,Math.round(bars)));
+  // состояние соединения роутера -> визуализация окна «Сигнал»
+  const cs=String(st.ConnectionStatus??"");
+  const barsEl=$("bars");
+  const setOn=on=>[...barsEl.children].forEach((b,i)=>b.classList.toggle("on", on&&i<bars));
+  if(cs==="901"){                         // подключено — зелёная шкала, как обычно
+    barsEl.className="bars ok";setOn(true);
+    $("siggen").textContent=NET[nt]?(NET[nt]+(GEN[nt]?(" · "+GEN[nt]):"")):"—";
+    const qr=qualityFor(sg,bars);
+    $("sigqual").textContent=qr.word;$("sigqual").style.color=qr.color;
+  }else if(cs==="900"){                    // подключение — оранжевая бегущая шкала
+    barsEl.className="bars conn";setOn(false);
+    $("siggen").textContent="—";
+    $("sigqual").textContent="соединение";$("sigqual").style.color="var(--warn)";
+  }else if(cs){                            // отключено / разрыв / сбой / ожидание — ошибка сети
+    barsEl.className="bars err";setOn(false);
+    $("siggen").textContent="—";
+    $("sigqual").textContent="ошибка сети";$("sigqual").style.color="var(--bad)";
+  }else{                                   // нет данных ещё
+    barsEl.className="bars";setOn(false);
+    $("siggen").textContent="—";
+    $("sigqual").textContent="—";$("sigqual").style.color="var(--mut)";
+  }
+
+  applyTile("rsrp",sg.rsrp);applyTile("rsrq",sg.rsrq);applyTile("sinr",sg.sinr);applyTile("rssi",sg.rssi);
+
+  const dlbw=sg.dlbandwidth||sg.dl_bandwidth,ulbw=sg.ulbandwidth||sg.ul_bandwidth;
+  const cell=[["Band",sg.band?("B"+sg.band):null],["Cell ID",sg.cell_id],
+    ["eNodeB ID",sg.enodeb_id],["PCI",sg.pci],["EARFCN",sg.earfcn],
+    ["Полоса ↓ / ↑",(dlbw||ulbw)?((dlbw||"?")+" / "+(ulbw||"?")):null],
+    ["Частота ↓ / ↑",(sg.ltedlfreq||sg.lteulfreq)?(((num(sg.ltedlfreq)||0)/10)+" / "+((num(sg.lteulfreq)||0)/10)+" MHz"):null],
+  ].filter(r=>r[1]!=null&&r[1]!=="");
+  renderRows("cellrows",cell,d.logged_in?"сигнал не получен":"нужен вход");
+
+  $("dl").textContent=mbps(tr.CurrentDownloadRate);$("ul").textContent=mbps(tr.CurrentUploadRate);
+  $("sess").textContent=bytes(tr.CurrentDownload)+" / "+bytes(tr.CurrentUpload);
+  $("uptime").textContent=dur(tr.CurrentConnectTime);
+  $("month").textContent=(mo.CurrentMonthDownload!=null&&mo.CurrentMonthDownload!=="")?
+    (bytes(mo.CurrentMonthDownload)+" / "+bytes(mo.CurrentMonthUpload)):"—";
+  $("total").textContent=bytes(tr.TotalDownload)+" / "+bytes(tr.TotalUpload);
+
+  // управление
+  $("controls").style.display=d.logged_in?"block":"none";
+  $("authbtn").innerHTML=d.logged_in?(EXIT_SVG+"Выйти"):"Войти";
+  $("rebootbtn").style.display=d.logged_in?"":"none";
+  $("scanneed").style.display=d.logged_in?"none":"block";
+  if(!state.scanRunning)$("scanstart").disabled=!d.logged_in;
+  if(d.logged_in){
+    const sup=(Array.isArray(d.supported)&&d.supported.length)?d.supported:DEFAULT_BANDS;
+    // список диапазонов для сканера (перерисовываем при смене набора поддерживаемых)
+    if(sup.join(",")!==state.scanBandsKey){state.scanBandsKey=sup.join(",");renderScanBands(sup);}
+    // контрол Band: доступные по последнему скану — первыми, остальные под спойлером
+    const avail=(state.scanAvailable||[]).filter(n=>sup.includes(n));
+    const okey=sup.join(",")+"|"+avail.join(",");
+    if(okey!==state.bandsKey){state.bandsKey=okey;renderBandControl(sup,avail);}
+    // текущие band из маски (только если пользователь сейчас не правит выбор)
+    if(!state.busy && document.activeElement.tagName!=="INPUT"){
+      const nm=d.netmode||{};const mode=nm.NetworkMode;const cur=bandsFromMask(nm.LTEBand);
+      document.querySelectorAll('#bandctl .bands label').forEach(l=>{const n=+l.firstChild.value;const on=mode!=="00"&&cur.includes(n);l.firstChild.checked=on;l.classList.toggle("on",on);});
+    }
+    // сота + статус привязки
+    $("curcell").textContent=sg.cell_id?("Cell "+sg.cell_id+(sg.pci?(" · PCI "+sg.pci):"")+(sg.earfcn?(" · EARFCN "+sg.earfcn):"")):"—";
+    const cl=d.celllock||{};
+    const en=cl.enable||cl.Enable||cl.status||"";
+    $("lockstate").textContent=(en==="1"||en===1)?"привязана":(Object.keys(cl).length?"свободна":"—");
+  }
+
+  const note=$("authnote");
+  if(!d.logged_in){note.style.display="";
+    note.innerHTML="Панель работает <b>без входа</b>: оператор, статус, трафик и сигнал в палочках. "+
+      "Нажмите <b>«Войти»</b> (вверху справа), чтобы получить точный сигнал, смену Band, привязку к соте и перезагрузку.";
+  }else note.style.display="none";
+
+  const errs=(d.errors||[]).filter(e=>!/100003/.test(e));
+  $("err").textContent=errs.length?("Проблемы: "+errs.join("; ")):"";
+
+  // оверлей входа — при первом показе ставим курсор (на пароль, если адрес уже заполнен)
+  if(!d.logged_in && !state.dismissed){
+    if(!$("overlay").classList.contains("show")){$("overlay").classList.add("show");focusLogin();}
+  }
+  if(d.logged_in) $("overlay").classList.remove("show");
+}
+function renderRows(id,rows,empty){const el=$(id);
+  el.innerHTML=rows.length?rows.map(r=>"<b>"+r[0]+"</b><span>"+String(r[1])+"</span>").join(""):"<b>—</b><span>"+empty+"</span>";}
+
+// ---------- вход ----------
+function authClick(){ if(state.logged_in){quitPanel();} else {state.dismissed=false;$("overlay").classList.add("show");focusLogin();} }
+function skipLogin(){state.dismissed=true;$("overlay").classList.remove("show");}
+async function doLogin(){
+  const pw=$("pw").value, usr=$("usr").value.trim()||"admin";
+  const router=$("router").value.trim()||"192.168.1.1";
+  try{localStorage.setItem("b818router",router);}catch(_){}
+  $("loginerr").textContent="";$("loginbtn").disabled=true;
+  try{
+    const ctrl=new AbortController();const tm=setTimeout(()=>ctrl.abort(),15000);
+    const r=await(await fetch("/ctl/login",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({password:pw,username:usr,router}),signal:ctrl.signal})).json();
+    clearTimeout(tm);
+    if(r.ok&&r.logged_in){$("pw").value="";state.dismissed=false;$("overlay").classList.remove("show");toast("Вход выполнен","ok");tick();}
+    else{$("loginerr").textContent=r.error?("Не вошли: "+r.error):"Не вошли (проверьте пароль)";}
+  }catch(e){$("loginerr").textContent=(e.name==="AbortError")?"Роутер не ответил вовремя — повторите":"Ошибка связи с панелью";}
+  finally{$("loginbtn").disabled=false;}
+}
+async function doLogout(){await fetch("/ctl/logout",{method:"POST"});state.dismissed=false;toast("Выход выполнен");tick();}
+
+// ---------- управление ----------
+async function post(path,body){
+  state.busy=true;
+  try{const r=await(await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(body||{})})).json();return r;}
+  catch(e){return {ok:false,error:"нет связи с панелью"};}
+  finally{setTimeout(()=>state.busy=false,500);}
+}
+function chosenBands(){return [...document.querySelectorAll('#bandctl .bands input:checked')].map(i=>+i.value);}
+async function applyBand(){
+  const bands=chosenBands();
+  if(!bands.length){toast("Отметьте хотя бы один Band или нажмите «Авто»","bad");return;}
+  if(!confirm("Оставить только: "+bands.map(b=>"B"+b).join(", ")+"?\nСвязь прервётся на несколько секунд."))return;
+  $("bandapply").disabled=true;
+  const r=await post("/ctl/setband",{mode:"03",bands});
+  $("bandapply").disabled=false;
+  toast(r.ok?"Band применён":("Не удалось: "+(r.error||r.code||"?")),r.ok?"ok":"bad");
+}
+async function setAuto(){
+  if(!confirm("Вернуть выбор Band в «Авто»?\nСвязь прервётся на несколько секунд."))return;
+  const r=await post("/ctl/setband",{mode:"00",bands:[]});
+  toast(r.ok?"Режим «Авто» включён":("Не удалось: "+(r.error||r.code||"?")),r.ok?"ok":"bad");
+}
+async function cellLock(enable){
+  const sg=state.lastSignal||{};
+  if(enable){
+    if(!sg.cell_id){toast("Нет данных о текущей соте","bad");return;}
+    if(!confirm("Привязать роутер к текущей соте (Cell "+sg.cell_id+")?\nОн перестанет переключаться на другие вышки."))return;
+  }else{ if(!confirm("Снять привязку к соте (вернуть авто-выбор)?"))return; }
+  const r=await post("/ctl/celllock",{enable,cell_id:sg.cell_id||"",pci:sg.pci||"",freq:sg.earfcn||""});
+  if(r.ok){toast(enable?"Команда привязки отправлена":"Привязка снята","ok");$("cellmsg").textContent="Ответ роутера принят. Если сота не зафиксировалась — прошивка не поддерживает привязку через API.";}
+  else{toast(r.error||"Не удалось","bad");$("cellmsg").textContent=(r.error||"Не удалось")+(r.code?(" (код "+r.code+")"):"");}
+}
+async function reboot(){
+  if(!confirm("Перезагрузить роутер?\nИнтернет пропадёт на 1–2 минуты."))return;
+  const r=await post("/ctl/reboot",{});
+  toast(r.ok?"Команда перезагрузки отправлена — роутер уходит в ребут":("Не удалось: "+(r.error||r.code||"?")),r.ok?"ok":"bad");
+}
+
+// ---------- тост ----------
+let toastT;
+function toast(msg,kind){const t=$("toast");t.textContent=msg;t.className="toast show"+(kind?(" "+kind):"");
+  clearTimeout(toastT);toastT=setTimeout(()=>t.className="toast",3500);}
+
+// ---------- вкладки ----------
+function showTab(name){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.tab===name));
+  $("tab-overview").style.display=name==="overview"?"":"none";
+  $("tab-scanner").style.display=name==="scanner"?"":"none";
+  if(name==="scanner")scanPoll();
+}
+async function quitPanel(){
+  if(!confirm("Выйти? Панель будет выключена, страницу можно закрыть."))return;
+  try{await fetch("/ctl/quit",{method:"POST"});}catch(_){}
+  document.body.innerHTML='<div style="text-align:center;margin-top:90px;color:var(--mut);'+
+    'font:16px system-ui">Панель остановлена. Можно закрыть эту вкладку.</div>';
+}
+
+// ---------- сканер ----------
+async function startScan(){
+  const bands=chosenBoxes("scanbands");
+  if(!bands.length){toast("Отметьте хотя бы один диапазон","bad");return;}
+  const est=Math.max(1,Math.round(bands.length*45/60));
+  if(!confirm("Сканировать "+bands.length+" диапазонов?\nИнтернет будет пропадать на время проверки каждого (примерно "+est+" мин всего)."))return;
+  const r=await post("/ctl/scan/start",{bands});
+  if(r.ok){$("scanresults").innerHTML="";scanPoll();if(!scanTimer)scanTimer=setInterval(scanPoll,2000);}
+  else toast("Не запустилось: "+(r.error||"?"),"bad");
+}
+async function stopScan(){await post("/ctl/scan/stop",{});toast("Останавливаю после текущего диапазона…");}
+
+let scanTimer=null;
+async function scanPoll(){
+  let d;try{d=await(await fetch("/ctl/scan/status",{cache:"no-store"})).json();}catch(e){return;}
+  renderScan(d);
+  state.scanRunning=!!d.running;
+  if(d.running){if(!scanTimer)scanTimer=setInterval(scanPoll,2000);}
+  else{if(scanTimer){clearInterval(scanTimer);scanTimer=null;}}
+}
+function renderScan(d){
+  const res=d.results||[];
+  const total=(d.bands||[]).length||res.length, done=res.length;
+  if(d.running){
+    $("scanprogbar").style.display="block";
+    $("scanprogfill").style.width=(total?Math.round(done/total*100):0)+"%";
+    $("scanprogtxt").textContent="Проверяю "+(d.current?("B"+d.current):"…")+" — "+done+" из "+total;
+    $("scanstart").disabled=true;$("scanstop").disabled=false;
+  }else{
+    $("scanstop").disabled=true;$("scanstart").disabled=!state.logged_in;
+    if(d.done){$("scanprogbar").style.display="block";$("scanprogfill").style.width="100%";
+      $("scanprogtxt").textContent="Готово"+(d.restored?", режим «Авто» восстановлен":"")+(d.error?(" · "+d.error):"");}
+  }
+  // таблица: по каждой Cell — её диапазоны отдельными строками, ячейка Cell объединена
+  const ok=res.filter(r=>r.connected&&r.cell_id);
+  const failed=res.filter(r=>!(r.connected&&r.cell_id)).map(r=>r.band);
+  if(d.done){ // запоминаем доступные диапазоны — они станут первыми в списке на «Обзоре»
+    state.scanAvailable=[...new Set(ok.map(r=>+(r.band_actual||r.band)))];
+    try{localStorage.setItem("b818scanAvail",JSON.stringify(state.scanAvailable));}catch(_){}
+    state.bandsKey="";
+  }
+  const byCell={};
+  ok.forEach(r=>{(byCell[r.cell_id]=byCell[r.cell_id]||[]).push(r);});
+  const cells=Object.keys(byCell);
+  let html="";
+  if(cells.length){
+    html='<div class="card" style="padding:0;overflow:hidden"><table class="scan">'+
+      '<thead><tr><th></th><th>Cell</th><th>Band</th><th>RSRP</th><th>RSRQ</th><th>SINR</th><th>RSSI</th><th>EARFCN</th></tr></thead><tbody>';
+    cells.forEach(cid=>{const rows=byCell[cid];
+      rows.forEach((r,i)=>{const bn=r.band_actual||r.band;
+        html+='<tr'+(i===0?' class="grp"':'')+'>'+
+          '<td class="pickcol"><input type="checkbox" class="pick" value="'+bn+'"></td>'+
+          (i===0?('<td class="cellcol" rowspan="'+rows.length+'">Cell '+cid+'</td>'):'')+
+          '<td>B'+bn+'</td><td>'+(r.rsrp||'—')+'</td><td>'+(r.rsrq||'—')+'</td><td>'+
+          (r.sinr||'—')+'</td><td>'+(r.rssi||'—')+'</td><td>'+(r.earfcn||'—')+'</td></tr>';
+      });
+    });
+    html+='</tbody></table></div>'+
+      '<div class="ctl-row" style="margin-top:12px"><button class="btn" onclick="lockPicked()">Зафиксировать отмеченные</button></div>';
+  }
+  if(!res.length)html=d.running?'<div class="muted">Сканирование началось…</div>':
+    '<div class="muted">Нажмите «Сканировать». Результаты появятся таблицей: по каждой Cell — доступные диапазоны и уровни сигнала.</div>';
+  // недоступные диапазоны — под шкалой прогресса
+  $("scanfailed").innerHTML=failed.length?("Не подключились: "+failed.map(b=>"B"+b).join(", ")):"";
+  $("scanresults").innerHTML=html;
+}
+async function lockPicked(){
+  const picks=[...new Set([...document.querySelectorAll('#scanresults .pick:checked')].map(i=>+i.value))];
+  if(!picks.length){toast("Отметьте хотя бы один диапазон галочкой","bad");return;}
+  if(!confirm("Зафиксировать диапазоны "+picks.map(b=>"B"+b).join(", ")+"?\nСвязь прервётся на несколько секунд."))return;
+  const r=await post("/ctl/setband",{mode:"03",bands:picks});
+  if(r.ok){
+    toast("Зафиксировано: "+picks.map(b=>"B"+b).join(", "),"ok");
+    // проброс на «Обзор»: отметить эти диапазоны в основном выборе Band
+    state.bandsKey="__manual__";
+    document.querySelectorAll('#bandctl .bands label').forEach(l=>{const n=+l.firstChild.value;const on=picks.includes(n);l.firstChild.checked=on;l.classList.toggle("on",on);});
+    showTab("overview");
+  } else toast("Не удалось: "+(r.error||r.code||"?"),"bad");
+}
+
+// тема
+$("theme").onclick=e=>{e.preventDefault();const cur=document.documentElement.getAttribute("data-theme");
+  const nx=cur==="dark"?"light":"dark";document.documentElement.setAttribute("data-theme",nx);
+  try{localStorage.setItem("b818theme",nx);}catch(_){}};
+try{const t=localStorage.getItem("b818theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(_){}
+
+try{$("router").value=localStorage.getItem("b818router")||"192.168.1.1";}catch(_){$("router").value="192.168.1.1";}
+$("eyebtn").innerHTML=EYE_SVG;
+try{state.scanAvailable=JSON.parse(localStorage.getItem("b818scanAvail")||"[]");}catch(_){state.scanAvailable=[];}
+initHelp();initBands();tick();scanPoll();setInterval(tick,3000);
+</script>
+</body>
+</html>
